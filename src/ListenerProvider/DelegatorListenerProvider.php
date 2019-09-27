@@ -8,18 +8,17 @@ use Psr\EventDispatcher\ListenerProviderInterface;
 
 /**
  * This ListenerProvider decorate an other one in order to register sub listener providers to handle an event given by its name.
- * It delegates its responsabilities to the sub listeners.
+ * It delegates its responsibilities to the sub listeners.
  */
 final class DelegatorListenerProvider implements ListenerProviderInterface
 {
+    use ListenersRuntimeStorageTrait;
+
     /** @var ListenerProviderInterface */
     private $baseListenerProvider;
 
     /** @var array */
     private $subListenerProvidersMap;
-
-    /** @var array */
-    private $cachedListeners;
 
     /**
      * DelegatorListenerProvider constructor.
@@ -43,12 +42,15 @@ final class DelegatorListenerProvider implements ListenerProviderInterface
         if (!isset($this->cachedListeners[$eventName])) {
             $subListenerProvider = $this->subListenerProvidersMap[$eventName] ?? null;
             if ($subListenerProvider && $subListenerProvider instanceof ListenerProviderInterface) {
-                return $this->cachedListeners[$eventName] = $subListenerProvider->getListenersForEvent($event);
+                $listeners = $subListenerProvider->getListenersForEvent($event);
+                $this->store($eventName, ...$listeners);
+
+                return $listeners;
             }
 
-            $this->cachedListeners[$eventName] = $this->baseListenerProvider->getListenersForEvent($event);
+            $this->store($eventName, ...$this->baseListenerProvider->getListenersForEvent($event));
         }
 
-        return $this->cachedListeners[$eventName];
+        return $this->get($eventName);
     }
 }

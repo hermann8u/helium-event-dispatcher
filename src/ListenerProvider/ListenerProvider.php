@@ -11,14 +11,13 @@ use Psr\EventDispatcher\ListenerProviderInterface;
  */
 final class ListenerProvider implements ListenerProviderInterface
 {
+    use ListenersRuntimeStorageTrait;
+
     /** @var iterable */
     private $listeners;
 
     /** @var string[] */
     private $listenersParameterMap;
-
-    /** @var array */
-    private $cachedListeners;
 
     /**
      * ListenerProvider constructor.
@@ -41,24 +40,24 @@ final class ListenerProvider implements ListenerProviderInterface
 
         $eventName = get_class($event);
 
-        if (!isset($this->cachedListeners[$eventName])) {
-            $this->cachedListeners[$eventName] = [];
+        if (!$this->storeHas($eventName)) {
+            $this->initInStore($eventName);
             foreach ($this->listeners as $key => $listener) {
                 if (is_a($event, $this->listenersParameterMap[$key])) {
-                    $this->cachedListeners[$eventName][] = $listener;
+                    $this->store($eventName, $listener);
                 }
             }
         }
 
-        dump(sprintf("----- Listeners for event %s -----", $eventName), $this->cachedListeners[$eventName]);
+        dump(sprintf("----- Listeners for event %s -----", $eventName), $this->get($eventName));
 
-        return $this->cachedListeners[$eventName];
+        return $this->get($eventName);
     }
 
     public function registerListeners(iterable $listeners): void
     {
         $this->listeners = $listeners;
-        $this->cachedListeners = [];
+        $this->resetStorage();
         $this->listenersParameterMap = [];
 
         foreach ($listeners as $key => $listener) {
